@@ -36,7 +36,7 @@ export function money(amount, currency = 'USD') { return new Intl.NumberFormat(u
 export function prettyDate(value) { return parseDate(value).toLocaleDateString(undefined, {month:'short',day:'numeric',year:parseDate(value).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined}); }
 export function relativeDate(value, today) { const days = daysUntil(value,today); return days < 0 ? `${-days}d overdue` : days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `In ${days} days`; }
 export function validateSub(s) {
-  return s && typeof s.id === 'string' && s.id.length > 0 && s.id.length <= 100 && typeof s.name === 'string' && s.name.trim().length > 0 && s.name.length <= 80 && typeof s.amount === 'number' && Number.isFinite(s.amount) && s.amount >= 0 && s.amount <= 1000000000 && CURRENCIES.includes(s.currency) && Object.hasOwn(CYCLES,s.cycle) && validDate(s.date) && ['active','paused'].includes(s.status) && typeof s.trial === 'boolean' && CATEGORIES.includes(s.category) && [0,1,3,7,14,30].includes(s.remind) && typeof s.notes === 'string' && s.notes.length <= 1000;
+  return s && typeof s.id === 'string' && s.id.length > 0 && s.id.length <= 100 && typeof s.name === 'string' && s.name.trim().length > 0 && s.name.length <= 80 && typeof s.amount === 'number' && Number.isFinite(s.amount) && s.amount >= 0 && s.amount <= 1000000000 && CURRENCIES.includes(s.currency) && typeof s.cycle === 'string' && Object.hasOwn(CYCLES,s.cycle) && validDate(s.date) && ['active','paused'].includes(s.status) && typeof s.trial === 'boolean' && CATEGORIES.includes(s.category) && [0,1,3,7,14,30].includes(s.remind) && typeof s.notes === 'string' && s.notes.length <= 1000;
 }
 export function readBackup(text) {
   const data = JSON.parse(text);

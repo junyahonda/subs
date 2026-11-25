@@ -43,6 +43,11 @@ test('backup import rejects malformed or hostile data without trusting it',()=>{
  assert.equal(validDate('2024-02-29'),true);
  assert.equal(validDate('2026-02-29'),false);
 });
+test('backup billing cycles must be strings, not coercible arrays or objects',()=>{
+ for(const cycle of [['weekly'],['monthly'],['yearly'],['quarterly'],{toString:'weekly'}]) {
+   assert.throws(()=>readBackup(JSON.stringify({version:1,subscriptions:[subscription({cycle})]})));
+ }
+});
 test('calendar reminders are before billing, escaped and exclude disabled entries',()=>{
  const ics=calendarFile([subscription({name:'Cloud, Plus;\nHello',date:'2026-06-10'}),subscription({id:'paused',status:'paused'}),subscription({id:'none',remind:0})],'2026-06-01',new Date('2026-06-01T10:00:00Z'));
  assert.match(ics,/DTSTART:20260607T/);
