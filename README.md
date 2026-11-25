@@ -37,4 +37,6 @@ GitHub Actions runs checks on pushes and PRs; the main branch deploys the produc
 
 Namecheap DNS needs only `CNAME subs → junyahonda.github.io` (Automatic TTL). Do not change the apex or other records. `public/CNAME` is included in the build. The app is designed for the root of its custom domain, not a GitHub project path.
 
-The service worker uses network-first caching for same-origin files. Assets are cached during normal loading and are available offline afterward; production updates load online automatically.
+The production build fingerprints its complete output and stamps the HTML and service worker with the same version. The service worker precaches a complete release (including its hashed JS/CSS), then activates it atomically; a partial or stale CDN response leaves the existing offline release working. Only `subs-shell-*` caches are removed; subscription data is never touched.
+
+Online installed copies check for updates on launch, resume, reconnection, and every minute while visible. The page refreshes automatically after a new worker activates once no dialog or input is active, so an Add/Edit draft is not discarded. Original pre-updater documents migrate on their next full app launch, not by forceful navigation: the worker cannot inspect their in-memory drafts or add resume listeners to code they have not loaded yet. After that one-time bootstrap, warm resumes are checked explicitly. Offline copies keep their complete cached release until connectivity returns.

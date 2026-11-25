@@ -5,6 +5,7 @@ import {STORAGE_KEY,CURRENCIES,CATEGORIES,CYCLES,dateString,daysUntil,nextDate,m
 import './styles.css';
 import {useNavigation} from './useNavigation.js';
 import {TotalAmount} from './TotalAmount.jsx';
+import {startUpdates} from './updates.mjs';
 
 function initialData() { try { const raw=localStorage.getItem(STORAGE_KEY); return {subs:raw ? readBackup(raw) : [],error:''}; } catch { return {subs:[], error:'Your saved data could not be read. Export or restore a backup before making changes; existing storage will not be overwritten.'}; } }
 const initial = initialData();
@@ -81,4 +82,4 @@ function SubscriptionForm({sub,currency,onSave,onDelete}) {
   </form>;
 }
 createRoot(document.getElementById('root')).render(<App/>);
-if ('serviceWorker' in navigator && import.meta.env.PROD) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+if (import.meta.env.PROD) startUpdates({window,document,navigator,MutationObserver,MessageChannel});
