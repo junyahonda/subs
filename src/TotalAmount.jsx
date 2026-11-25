@@ -1,4 +1,4 @@
-import {useLayoutEffect, useRef} from 'react';
+import React, {useLayoutEffect, useRef} from 'react';
 
 export function TotalAmount({value}) {
   const amount=useRef(null);
