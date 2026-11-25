@@ -43,6 +43,14 @@ export function readBackup(text) {
   if (!data || data.version !== 1 || !Array.isArray(data.subscriptions) || data.subscriptions.length > 2000 || !data.subscriptions.every(validateSub) || new Set(data.subscriptions.map(s=>s.id)).size !== data.subscriptions.length) throw new Error('Choose a valid Subs backup file. Your current data has not changed.');
   return data.subscriptions.map(({id,name,amount,currency,cycle,date,status,trial,category,remind,notes}) => ({id,name:name.trim(),amount,currency,cycle,date,status,trial,category,remind,notes}));
 }
+export function storeSubscriptions(storage, expected, next) {
+  const raw = storage.getItem(STORAGE_KEY);
+  const latest = raw ? readBackup(raw) : [];
+  // A stale tab must not silently replace subscriptions saved in another tab.
+  if (JSON.stringify(latest) !== JSON.stringify(expected)) return {saved:false,subscriptions:latest};
+  storage.setItem(STORAGE_KEY, JSON.stringify({version:1,subscriptions:next}));
+  return {saved:true,subscriptions:next};
+}
 const icsEscape = text => text.replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/;/g,'\\;').replace(/,/g,'\\,');
 const utcStamp = date => date.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
 export function calendarReminder(sub, today = dateString(), now = new Date()) {

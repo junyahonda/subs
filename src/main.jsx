@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {ArrowUpRight, ArrowRight, Bell, CalendarDays, Check, ChevronRight, CircleHelp, Download, LayoutDashboard, Leaf, List, LockKeyhole, Plus, Search, Settings, ShieldCheck, Sparkles, Upload, Wallet, X} from 'lucide-react';
-import {STORAGE_KEY,CURRENCIES,CATEGORIES,CYCLES,dateString,daysUntil,nextDate,monthlyCost,money,prettyDate,relativeDate,readBackup,calendarFile,googleCalendarLink} from './model.mjs';
+import {STORAGE_KEY,CURRENCIES,CATEGORIES,CYCLES,dateString,daysUntil,nextDate,monthlyCost,money,prettyDate,relativeDate,readBackup,calendarFile,googleCalendarLink,storeSubscriptions} from './model.mjs';
 import './styles.css';
 
 function initialData() { try { const raw=localStorage.getItem(STORAGE_KEY); return {subs:raw ? readBackup(raw) : [],error:''}; } catch { return {subs:[], error:'Your saved data could not be read. Export or restore a backup before making changes; existing storage will not be overwritten.'}; } }
@@ -23,7 +23,12 @@ function App() {
   useEffect(()=>{ if(!modal)return; prevFocus.current=document.activeElement; const dialog=dialogRef.current; dialog.showModal(); const close=()=>setModal(null); dialog.addEventListener('close',close); return()=>{dialog.removeEventListener('close',close);dialog.close();prevFocus.current?.focus();}; },[!!modal]);
   const persist = next => {
     if (initial.error && storageError) { setToast('Restore a backup first to protect the unreadable saved data.'); return false; }
-    try { localStorage.setItem(STORAGE_KEY,JSON.stringify({version:1,subscriptions:next})); setSubs(next);setStorageError('');return true; }
+    try {
+      const result=storeSubscriptions(localStorage,subs,next);
+      setSubs(result.subscriptions);
+      if(!result.saved){setModal(null);setToast('Your list changed in another tab. Nothing was overwritten; reopen the subscription to try again.');return false;}
+      setStorageError('');return true;
+    }
     catch { setStorageError('Saving is blocked or your storage is full. No changes were saved. Export a backup and check your browser settings.'); return false; }
   };
   function save(s) { if(persist(modal.sub ? subs.map(old=>old.id===s.id?s:old) : [...subs,s])){setModal(null);setCurrency(s.currency);setToast('Subscription saved. All yours, on this device.');} }

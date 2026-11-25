@@ -1,7 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {nextDate,daysUntil,monthlyCost,readBackup,calendarFile,validDate,calendarReminder,googleCalendarLink} from './model.mjs';
+import {nextDate,daysUntil,monthlyCost,readBackup,calendarFile,validDate,calendarReminder,googleCalendarLink,storeSubscriptions} from './model.mjs';
 const subscription = (overrides={}) => ({id:'test-id',name:'Example',amount:12,currency:'USD',cycle:'monthly',date:'2026-01-31',status:'active',trial:false,category:'Entertainment',remind:3,notes:'',...overrides});
+test('a stale tab cannot overwrite subscriptions added, edited, or deleted elsewhere',()=>{
+ let raw=JSON.stringify({version:1,subscriptions:[]});
+ const storage={getItem:()=>raw,setItem:(_key,value)=>{raw=value;}};
+ const netflix=subscription({id:'netflix',name:'Netflix'}), spotify=subscription({id:'spotify',name:'Spotify'});
+ assert.equal(storeSubscriptions(storage,[],[netflix]).saved,true);
+ const conflict=storeSubscriptions(storage,[],[spotify]);
+ assert.equal(conflict.saved,false);
+ assert.deepEqual(readBackup(raw),[netflix]);
+ assert.deepEqual(conflict.subscriptions,[netflix]);
+ assert.equal(storeSubscriptions(storage,[netflix],[netflix,spotify]).saved,true);
+ assert.equal(storeSubscriptions(storage,[netflix],[]).saved,false);
+ assert.equal(readBackup(raw).length,2);
+});
 test('renewals clamp month ends without drifting the billing anchor',()=>{
  assert.equal(nextDate(subscription(),'2026-02-01'),'2026-02-28');
  assert.equal(nextDate(subscription(),'2026-03-01'),'2026-03-31');
