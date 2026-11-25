@@ -34,11 +34,7 @@ function browser({offline=false, failRegistration=false}={}) {
   const navigator = {serviceWorker,onLine:!offline};
   class MutationObserver {constructor(fn){state.mutate=fn;} observe(){}}
   const emit = (target,type,data={})=>target.dispatchEvent(Object.assign(new Event(type),data));
-  const announce = version => {
-    let acknowledged=false;
-    emit(serviceWorker,'message',{data:{type:'SUBS_UPDATE',version},ports:[{postMessage:()=>{acknowledged=true;}}]});
-    return acknowledged;
-  };
+  const announce = version => emit(serviceWorker,'message',{data:{type:'SUBS_UPDATE',version}});
   startUpdates({window,document,navigator,MutationObserver,MessageChannel});
   return {state,window,document,navigator,serviceWorker,emit,announce};
 }
@@ -67,7 +63,7 @@ test('launch, warm resume, online and visible timer checks require no manual rel
 test('first install and unchanged version do not loop; a new controller refreshes once', async()=>{
   const b=browser();
   await flush();
-  assert.equal(b.announce('A'),true);
+  b.announce('A');
   assert.equal(b.state.reloads,0);
   b.state.version='B';
   b.emit(b.serviceWorker,'controllerchange');
@@ -76,11 +72,11 @@ test('first install and unchanged version do not loop; a new controller refreshe
   assert.equal(b.state.reloads,1);
 });
 
-test('acknowledges an update but preserves an open sheet until it closes', async()=>{
+test('preserves an open sheet until it closes after receiving an update', async()=>{
   const b=browser();
   await flush();
   b.state.dialog=true;
-  assert.equal(b.announce('B'),true);
+  b.announce('B');
   b.state.mutate();
   assert.equal(b.state.reloads,0);
   b.state.dialog=false;

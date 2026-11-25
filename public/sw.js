@@ -25,29 +25,15 @@ self.addEventListener('install', event => {
   })());
 });
 
-async function updateClient(client) {
-  // New clients acknowledge and wait for open forms to close before refreshing.
-  // Copies from before the updater existed need one automatic navigation instead.
-  const channel = new MessageChannel();
-  let timeout;
-  const managed = await new Promise(resolve => {
-    channel.port1.onmessage = () => resolve(true);
-    timeout = setTimeout(() => resolve(false), 2000);
-    client.postMessage({type:'SUBS_UPDATE', version:VERSION}, [channel.port2]);
-  });
-  clearTimeout(timeout);
-  channel.port1.close();
-  if (!managed && client.visibilityState === 'visible') {
-    // Do not await navigation inside activate: its fetch waits for activation.
-    client.navigate(client.url).catch(()=>{});
-  }
-}
-
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     await Promise.all((await caches.keys()).filter(key => key.startsWith('subs-shell-') && key !== CACHE).map(key => caches.delete(key)));
     await self.clients.claim();
-    await Promise.all((await self.clients.matchAll({type:'window'})).map(updateClient));
+    // Only the page knows whether a form is open. Never force-navigate legacy
+    // clients that cannot yet defer a refresh to protect their in-memory drafts.
+    for (const client of await self.clients.matchAll({type:'window'})) {
+      client.postMessage({type:'SUBS_UPDATE', version:VERSION});
+    }
   })());
 });
 

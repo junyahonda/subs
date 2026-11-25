@@ -41,7 +41,6 @@ export function startUpdates({window, document, navigator, MutationObserver, Mes
 
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data?.type !== 'SUBS_UPDATE') return;
-    event.ports[0]?.postMessage({managed:true});
     receive(event.data.version);
   });
   navigator.serviceWorker.addEventListener('controllerchange', inspect);
