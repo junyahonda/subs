@@ -23,6 +23,7 @@ function App() {
   useEffect(()=>{ if(!modal)return; prevFocus.current=document.activeElement; const dialog=dialogRef.current; dialog.showModal(); const close=()=>setModal(null); dialog.addEventListener('close',close); return()=>{dialog.removeEventListener('close',close);dialog.close();prevFocus.current?.focus();}; },[!!modal]);
   const persist = next => {
     if (initial.error && storageError) { setToast('Restore a backup first to protect the unreadable saved data.'); return false; }
+    if (next.length > 2000) { setToast('This list is full (2,000 subscriptions). Delete an item before adding another.'); return false; }
     try {
       const result=storeSubscriptions(localStorage,subs,next);
       setSubs(result.subscriptions);

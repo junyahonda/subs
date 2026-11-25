@@ -15,6 +15,24 @@ test('a stale tab cannot overwrite subscriptions added, edited, or deleted elsew
  assert.equal(storeSubscriptions(storage,[netflix],[]).saved,false);
  assert.equal(readBackup(raw).length,2);
 });
+test('derived reminder fields do not create false stale-tab conflicts on later saves',()=>{
+ const sub=subscription();let raw=JSON.stringify({version:1,subscriptions:[sub]});
+ const storage={getItem:()=>raw,setItem:(_key,value)=>{raw=value;}};
+ const first=storeSubscriptions(storage,[sub],[{...sub,amount:20,due:'2026-02-28'}]);
+ assert.equal(first.saved,true);
+ assert.equal('due' in first.subscriptions[0],false);
+ assert.equal(storeSubscriptions(storage,first.subscriptions,[]).saved,true);
+ assert.deepEqual(readBackup(raw),[]);
+});
+test('writes reject oversized lists without corrupting the existing list',()=>{
+ const list=Array.from({length:2000},(_,id)=>subscription({id:String(id)}));
+ let raw=JSON.stringify({version:1,subscriptions:list});
+ const storage={getItem:()=>raw,setItem:(_key,value)=>{raw=value;}};
+ assert.throws(()=>storeSubscriptions(storage,list,[...list,subscription({id:'overflow'})]));
+ assert.equal(readBackup(raw).length,2000);
+ assert.equal(storeSubscriptions(storage,list,list.slice(0,-1)).saved,true);
+ assert.equal(readBackup(raw).length,1999);
+});
 test('renewals clamp month ends without drifting the billing anchor',()=>{
  assert.equal(nextDate(subscription(),'2026-02-01'),'2026-02-28');
  assert.equal(nextDate(subscription(),'2026-03-01'),'2026-03-31');

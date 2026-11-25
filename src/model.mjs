@@ -46,10 +46,13 @@ export function readBackup(text) {
 export function storeSubscriptions(storage, expected, next) {
   const raw = storage.getItem(STORAGE_KEY);
   const latest = raw ? readBackup(raw) : [];
+  const canonicalExpected = readBackup(JSON.stringify({version:1,subscriptions:expected}));
   // A stale tab must not silently replace subscriptions saved in another tab.
-  if (JSON.stringify(latest) !== JSON.stringify(expected)) return {saved:false,subscriptions:latest};
-  storage.setItem(STORAGE_KEY, JSON.stringify({version:1,subscriptions:next}));
-  return {saved:true,subscriptions:next};
+  if (JSON.stringify(latest) !== JSON.stringify(canonicalExpected)) return {saved:false,subscriptions:latest};
+  // Use the same schema on write and read; strip derived fields such as `due`.
+  const canonicalNext = readBackup(JSON.stringify({version:1,subscriptions:next}));
+  storage.setItem(STORAGE_KEY, JSON.stringify({version:1,subscriptions:canonicalNext}));
+  return {saved:true,subscriptions:canonicalNext};
 }
 const icsEscape = text => text.replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/;/g,'\\;').replace(/,/g,'\\,');
 const utcStamp = date => date.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
