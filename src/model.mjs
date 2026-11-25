@@ -44,17 +44,24 @@ export function readBackup(text) {
   return data.subscriptions.map(({id,name,amount,currency,cycle,date,status,trial,category,remind,notes}) => ({id,name:name.trim(),amount,currency,cycle,date,status,trial,category,remind,notes}));
 }
 const icsEscape = text => text.replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/;/g,'\\;').replace(/,/g,'\\,');
-export function calendarFile(subs, today = dateString()) {
+const utcStamp = date => date.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+export function calendarReminder(sub, today = dateString(), now = new Date()) {
+  const due = nextDate(sub,today);
+  const planned = parseDate(due);
+  planned.setDate(planned.getDate()-sub.remind);
+  planned.setHours(9,0,0,0);
+  // A same-day 9 AM alarm may already have passed. Give urgent imports 15 minutes.
+  const start = new Date(Math.max(+planned, +now + 15 * 60000));
+  return {due, start, end:new Date(+start + 30 * 60000), title:`${sub.trial ? 'Trial ending' : 'Renewal coming'}: ${sub.name}`, description:`${sub.name} ${sub.trial ? 'trial ends' : 'renews'} on ${due} for ${money(sub.amount,sub.currency)}. Review or cancel with the provider before billing. This is a one-time reminder; export again after a renewal or edit.`};
+}
+export function googleCalendarLink(sub, today = dateString(), now = new Date()) {
+  const event = calendarReminder(sub,today,now);
+  return `https://calendar.google.com/calendar/render?${new URLSearchParams({action:'TEMPLATE',text:event.title,dates:`${utcStamp(event.start)}/${utcStamp(event.end)}`,details:event.description})}`;
+}
+export function calendarFile(subs, today = dateString(), now = new Date()) {
   const events = subs.filter(s=>s.status==='active' && s.remind > 0).map(s => {
-    const due = nextDate(s,today);
-    // Reminder is its own event before the bill, so importing late still gives a visible entry.
-    const reminder = parseDate(due);
-    reminder.setDate(reminder.getDate()-s.remind);
-    const reminderDate = dateString(reminder) < today ? today : dateString(reminder);
-    const end = parseDate(reminderDate); end.setDate(end.getDate()+1);
-    const compact = d => d.replaceAll('-','');
-    const title = `${s.trial ? 'Trial ending' : 'Renewal coming'}: ${s.name}`;
-    return ['BEGIN:VEVENT', `UID:${s.id.replace(/[^a-zA-Z0-9-]/g,'')}-${compact(due)}@subs.junyahonda.com`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')}`, `DTSTART;VALUE=DATE:${compact(reminderDate)}`, `DTEND;VALUE=DATE:${compact(dateString(end))}`, `SUMMARY:${icsEscape(title)}`, `DESCRIPTION:${icsEscape(`${s.name} ${s.trial ? 'trial ends' : 'renews'} on ${due} for ${money(s.amount,s.currency)}. Review or cancel with the provider before billing. This is a one-time reminder; export again after a renewal or edit.`)}`, 'BEGIN:VALARM', 'TRIGGER:PT9H', 'ACTION:DISPLAY', `DESCRIPTION:${icsEscape(title)}`, 'END:VALARM', 'END:VEVENT'].join('\r\n');
+    const {due,start,end,title,description} = calendarReminder(s,today,now);
+    return ['BEGIN:VEVENT', `UID:${s.id.replace(/[^a-zA-Z0-9-]/g,'')}-${due.replaceAll('-','')}@subs.junyahonda.com`, `DTSTAMP:${utcStamp(now)}`, `DTSTART:${utcStamp(start)}`, `DTEND:${utcStamp(end)}`, `SUMMARY:${icsEscape(title)}`, `DESCRIPTION:${icsEscape(description)}`, 'BEGIN:VALARM', 'TRIGGER:PT0S', 'ACTION:DISPLAY', `DESCRIPTION:${icsEscape(title)}`, 'END:VALARM', 'END:VEVENT'].join('\r\n');
   });
   // Fold by UTF-8 octets (RFC 5545), including long non-ASCII names.
   const fold = line => { let result='', length=0; for (const char of line) { const size = new TextEncoder().encode(char).length; if (length+size>73) { result+='\r\n '; length=1; } result+=char; length+=size; } return result; };

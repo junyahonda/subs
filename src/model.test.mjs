@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {nextDate,daysUntil,monthlyCost,readBackup,calendarFile,validDate} from './model.mjs';
+import {nextDate,daysUntil,monthlyCost,readBackup,calendarFile,validDate,calendarReminder,googleCalendarLink} from './model.mjs';
 const subscription = (overrides={}) => ({id:'test-id',name:'Example',amount:12,currency:'USD',cycle:'monthly',date:'2026-01-31',status:'active',trial:false,category:'Entertainment',remind:3,notes:'',...overrides});
 test('renewals clamp month ends without drifting the billing anchor',()=>{
  assert.equal(nextDate(subscription(),'2026-02-01'),'2026-02-28');
@@ -31,12 +31,23 @@ test('backup import rejects malformed or hostile data without trusting it',()=>{
  assert.equal(validDate('2026-02-29'),false);
 });
 test('calendar reminders are before billing, escaped and exclude disabled entries',()=>{
- const ics=calendarFile([subscription({name:'Cloud, Plus;\nHello',date:'2026-06-10'}),subscription({id:'paused',status:'paused'}),subscription({id:'none',remind:0})],'2026-06-01');
- assert.match(ics,/DTSTART;VALUE=DATE:20260607/);
- assert.match(ics,/BEGIN:VALARM\r\nTRIGGER:PT9H/);
+ const ics=calendarFile([subscription({name:'Cloud, Plus;\nHello',date:'2026-06-10'}),subscription({id:'paused',status:'paused'}),subscription({id:'none',remind:0})],'2026-06-01',new Date('2026-06-01T10:00:00Z'));
+ assert.match(ics,/DTSTART:20260607T/);
+ assert.match(ics,/BEGIN:VALARM\r\nTRIGGER:PT0S/);
  assert.match(ics,/Cloud\\, Plus\\;\\nHello/);
  assert.equal((ics.match(/BEGIN:VEVENT/g)||[]).length,1);
  assert.match(ics,/END:VCALENDAR\r\n$/);
- const late=calendarFile([subscription({trial:true,date:'2026-06-10'})],'2026-06-11');
- assert.match(late,/DTSTART;VALUE=DATE:20260611/);
+ const late=calendarFile([subscription({trial:true,date:'2026-06-10'})],'2026-06-11',new Date('2026-06-11T20:03:00Z'));
+ assert.match(late,/DTSTART:20260611T201800Z/);
+});
+test('urgent calendar imports always schedule a future alarm, including late night',()=>{
+ for(const time of ['2026-11-25T20:03:00Z','2026-11-25T23:58:00Z']) {
+   const now=new Date(time), sub=subscription({date:'2026-11-28'});
+   const reminder=calendarReminder(sub,'2026-11-25',now);
+   assert.equal(+reminder.start,+now+15*60000);
+   const url=new URL(googleCalendarLink(sub,'2026-11-25',now));
+   assert.equal(url.origin,'https://calendar.google.com');
+   assert.equal(url.searchParams.get('action'),'TEMPLATE');
+   assert.match(url.searchParams.get('dates'),/Z\/.*Z$/);
+ }
 });
