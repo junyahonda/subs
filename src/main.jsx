@@ -1,5 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
+import {createPortal} from 'react-dom';
 import {ArrowUpRight, ArrowRight, Bell, CalendarDays, Check, ChevronRight, CircleHelp, Download, LayoutDashboard, Leaf, List, LockKeyhole, Plus, Search, Settings, ShieldCheck, Sparkles, Upload, Wallet, X} from 'lucide-react';
 import {STORAGE_KEY,CURRENCIES,CATEGORIES,CYCLES,dateString,daysUntil,nextDate,monthlyCost,money,prettyDate,relativeDate,readBackup,calendarFile,googleCalendarLink,storeSubscriptions} from './model.mjs';
 import './styles.css';
@@ -30,7 +31,7 @@ function App() {
       if(!result.saved){setModal(null);setToast('Your list changed in another tab. Nothing was overwritten; reopen the subscription to try again.');return false;}
       setStorageError('');return true;
     }
-    catch { setStorageError('Saving is blocked or your storage is full. No changes were saved. Export a backup and check your browser settings.'); return false; }
+    catch { const message='Saving is blocked or your storage is full. No changes were saved. Export a backup and check your browser settings.';setStorageError(message);setToast(message);return false; }
   };
   function save(s) { if(persist(modal.sub ? subs.map(old=>old.id===s.id?s:old) : [...subs,s])){setModal(null);setCurrency(s.currency);setToast('Subscription saved. All yours, on this device.');} }
   function remove(s) { if(window.confirm(`Delete ${s.name}? This cannot be undone.`) && persist(subs.filter(old=>old.id!==s.id))){setModal(null);setToast('Subscription deleted.');} }
@@ -56,7 +57,7 @@ function App() {
     <nav className="mobile-nav" aria-label="Mobile navigation">{tabs.map(([id,Icon,label])=><button key={id} onClick={()=>setTab(id)} className={tab===id?'selected':''}><span><Icon size={21}/>{id==='reminders'&&alerts.length>0&&<i/>}</span>{label}</button>)}</nav>
     {modal&&<dialog ref={dialogRef} className={`dialog ${modal.type==='form'?'form-dialog':''}`} onClick={e=>{if(e.target===e.currentTarget)setModal(null);}}><div className="dialog-heading"><div><p className="eyebrow">{modal.type==='form'?'MAKE IT PART OF THE PICTURE':'ALL YOURS. ALWAYS.'}</p><h2>{modal.type==='form'?(modal.sub?'Edit subscription':'Add a subscription'):'Your space, your settings'}</h2></div><button className="icon-button" aria-label="Close dialog" onClick={()=>setModal(null)}><X size={22}/></button></div>{modal.type==='form'?<SubscriptionForm key={modal.sub?.id||'new'} sub={modal.sub} currency={currency} onSave={save} onDelete={remove}/>:<div className="settings-content"><div className="privacy-card"><ShieldCheck size={25}/><div><h3>Nothing to sign into. Nothing shared.</h3><p>Your list is saved only in this browser on this device. Clearing browser data or using a different phone won’t keep it. Back up anything you want to keep.</p></div></div><h3>Backups</h3><p>Save a copy to your phone, or restore one on a new device. Backup files contain your subscription details; keep them somewhere private.</p><div className="settings-actions"><button className="button secondary" onClick={()=>download(JSON.stringify({version:1,subscriptions:subs},null,2),`subs-backup-${today}.json`,'application/json')}><Download size={17}/>Export backup</button><button className="button secondary" onClick={()=>importRef.current.click()}><Upload size={17}/>Restore backup</button></div><h3>Make yourself at home</h3><p>In Android Chrome, open the browser menu and choose <strong>Add to Home screen</strong> → <strong>Install</strong>. After your first visit, Subs works offline too.</p>{install&&<button className="button primary" onClick={()=>{install.prompt();setInstall(null);}}>Install Subs</button>}<h3>About reminders</h3><p>Subs shows upcoming charges while it’s open. For closed-app alerts, open Reminders and add an event to Google Calendar, or download and import a calendar file. Check that event notifications are enabled before saving. Calendar actions are optional and share the event with your chosen calendar provider.</p><button className="text-button" onClick={()=>{setModal(null);setTab('reminders');}}>Go to reminders <ArrowRight size={16}/></button></div>}</dialog>}
     <input ref={importRef} type="file" accept="application/json,.json" hidden onChange={importBackup}/>
-    {toast&&<div className="toast" role="status"><Check size={18}/>{toast}<button aria-label="Dismiss message" onClick={()=>setToast('')}><X size={16}/></button></div>}
+    {toast&&createPortal(<div className={`toast ${modal?'dialog-notice':''}`} role="status"><CircleHelp size={18}/>{toast}<button aria-label="Dismiss message" onClick={()=>setToast('')}><X size={16}/></button></div>,modal&&dialogRef.current ? dialogRef.current : document.body)}
   </div>;
 }
 function SubscriptionForm({sub,currency,onSave,onDelete}) {
